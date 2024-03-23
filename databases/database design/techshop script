@@ -1,0 +1,44 @@
+//Create database and add collections
+use TechShop
+db.createCollection("Users")
+db.Users.createIndex({ email: 1 }, { unique: true })
+db.createCollection("Products")
+db.createCollection("Transactions")
+
+// Insert sample data
+db.Users.insertMany([
+    { name: "Uwimbabazi Keza", email: "keza@gmail.com", password: "verystrongpassword1" },
+    { name: "Mucyo Hirwa", email: "mucyo@gmail.com", password: "learningNosql" },
+])
+
+db.Products.insertMany([
+    { name: "Dell Laptop", description: "High-performance laptop", price: 1000, userId: ObjectId("65fd9e553afbed585ed14a14") },
+    { name: "Iphone 15", description: "Latest smartphone model", price: 700, userId: ObjectId("65fd9e553afbed585ed14a15") },
+])
+
+
+db.Transactions.insertMany([
+    { buyerId: ObjectId("65fd9e553afbed585ed14a14"), productId: ObjectId("65fd9f2d3afbed585ed14a17"), transactionDate: new Date(), quantity: 3 },
+    { buyerId: ObjectId("65fd9e553afbed585ed14a15"), productId: ObjectId("65fd9f2d3afbed585ed14a18"), transactionDate: new Date(), quantity: 1 },
+])
+
+//Products listed by specific user
+db.Products.find({ userId: ObjectId("65fd9e553afbed585ed14a14") })
+
+//Total amount spent by specific user
+db.Transactions.aggregate([
+    { $match: { buyerId: ObjectId("65fd9e553afbed585ed14a14") } },
+    { $lookup: { from: "Products", localField: "65fd9f2d3afbed585ed14a17", foreignField: "_id", as: "product" } },
+    { $unwind: "$product" },
+    { $group: { _id: null, totalAmount: { $sum: { $multiply: ["$product.price", "$quantity"] } } } }
+])
+
+//Top 5 most popular products
+db.Transactions.aggregate([
+    { $group: { _id: "$productId", totalTransactions: { $sum: "$quantity" } } },
+    { $sort: { totalTransactions: -1 } },
+    { $limit: 5 },
+    { $lookup: { from: "Products", localField: "_id", foreignField: "_id", as: "product" } },
+    { $unwind: "$product" },
+    { $project: { productName: "$product.name", totalTransactions: 1 } }
+])
